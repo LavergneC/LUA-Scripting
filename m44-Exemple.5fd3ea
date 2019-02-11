@@ -1,0 +1,1327 @@
+zoneCarteGUID = '947c12'
+zonePlateauGUID = '90a9ef'
+plateauGUID = '69ac6b'
+tableGUID = '4ee1f2'
+paquetCarteGUID = 'c19d10'
+pionGUID = '9c00f6'
+clockGUID = '769e84'
+
+carteGUID = {
+	map1 ='4396e9', map2 ='6fcba6', map3='4162ff', map4='4866cb',
+	map5='5984fe', map6='7af877', map7='0651b8', map8='b2af99',
+	map9='5fbe2c',map10='4c572e',map11='498899',map12='5ff415',
+	map13='309482',map14='ad85b1',map15='8d2d0c',map16='9ceb5d'
+}
+
+button_parameters = {
+    click_function = 'clicked', function_owner = self, label = 'Make this map',
+    position = {0,0.8,0}, rotation = {0,-90,0},
+    width = 500, height = 500, font_size = 100
+}
+
+function onLoad()
+    self.createButton(button_parameters)
+    self.setName('Map Generator')
+    clock = getObjectFromGUID(clockGUID)
+end
+
+sensPlateau = 'plaine'
+etat_generation = 'ready'
+function clicked()
+	if etat_generation == 'ready' then
+		etat_generation = 'not_ready'
+		cleanBoard()
+		local zoneCarte = getObjectFromGUID(zoneCarteGUID)
+		local objsZoneCarte = zoneCarte.getObjects()
+		--local mapGUID = pages[4].getGUID()
+		for i, v in pairs(objsZoneCarte)do
+			mapGUID = v.guid
+
+			if mapGUID == carteGUID.map1 then
+				buildMap1_1()
+			end
+			if mapGUID == carteGUID.map2 then
+				buildMap2_1()
+			end
+			if mapGUID == carteGUID.map3 then
+				buildMap3_1()
+			end
+			if mapGUID == carteGUID.map4 then
+				buildMap4_1()
+			end
+			if mapGUID == carteGUID.map5 then
+				buildMap5_1()
+			end
+			if mapGUID == carteGUID.map6 then
+				buildMap6_1()
+			end
+			if mapGUID == carteGUID.map7 then
+				buildMap7_1()
+			end
+			if mapGUID == carteGUID.map8 then
+				buildMap8_1()
+			end
+			if mapGUID == carteGUID.map9 then
+				buildMap9_1()
+			end
+			if mapGUID == carteGUID.map10 then
+				buildMap10_1()
+			end
+			if mapGUID == carteGUID.map11 then
+				buildMap11_1()
+			end
+			if mapGUID == carteGUID.map12 then
+				buildMap12_1()
+			end
+			if mapGUID == carteGUID.map13 then
+				buildMa13p_1()
+			end
+			if mapGUID == carteGUID.map14 then
+				buildMa14p_1()
+			end
+			if mapGUID == carteGUID.map15 then
+				buildMap15_1()
+			end
+			if mapGUID == carteGUID.map16 then
+				buildMap16_1()
+			end
+		end
+	else
+		msg = "Veuillez attendre la fin de la construction"
+		rgb = {r=1, g=0, b=0}
+		broadcastToAll(msg, rgb)
+		Wait.time(delockBuild, 10)
+	end
+end
+function delockBuild()
+	etat_generation = 'ready'
+end
+function cleanBoard()
+	local posPaquet = {0.3235, 3,-23.3472}
+	local rotPaquet = {180,-90,0}
+	local paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.reset()
+	local allObj = getAllObjects()
+	for i, v in pairs(allObj) do
+		if(v.tag == 'Deck' and v.guid ~= paquetCarteGUID)then
+			v.setPosition(posPaquet)
+			v.setRotation(rotPaquet)
+		end
+	end
+	paquet.reset()
+
+	local zoneBoard = getObjectFromGUID(zonePlateauGUID)
+	local objsPlateau = zoneBoard.getObjects()
+
+	local dontCleanGUID = {
+		plateauGUID, tableGUID, '373822', 'ae356b', '55dec1', '56b194',
+		'34d663', 'a3b0e7', 'c603bc', '13270f'
+	}
+	for i, v in pairs(objsPlateau)do
+		local destroy = true
+		for j=1, #dontCleanGUID do
+			if(v.tag =='Deck')then
+				destroy = false
+			end
+			if(dontCleanGUID[j] == v.guid)then
+				destroy = false
+				if j  >2 then
+					local tpDePos = {-6.7,3+(j*1.2)-2,-28}
+					v.setPosition(tpDePos)
+				end
+			end
+		end
+		if destroy then
+			v.destruct()
+		end
+	end
+end
+
+typeToken={
+	foret = 'http://i.imgur.com/DF3UNdH.png', montagne = 'http://i.imgur.com/mnsTMbG.png',
+	riviereCoudee = 'http://i.imgur.com/9xZ08II.png', bocage = 'http://i.imgur.com/kOjtE9X.png',
+	rivieredroite1 = 'http://i.imgur.com/OJCYoPT.png', rivieredroite2 = 'http://i.imgur.com/2dCI6kS.png',
+	village1 = 'http://i.imgur.com/h93jF5r.png', village2 = 'http://i.imgur.com/MLhqtiu.png',
+	village3 = 'http://i.imgur.com/9ClcaWX.png', village4 = 'http://i.imgur.com/9ClcaWX.png',
+	village5 = 'http://i.imgur.com/XS3CxPh.png'
+}
+typeTile={
+	bunker = 'http://i.imgur.com/2zWIbWc.png', pont ='http://cloud-3.steamusercontent.com/ugc/958593318906308363/9849031CD59F15CC3FCF9F3E6E9C704112E99333/',
+	medailleB = 'http://i.imgur.com/qe3Qm8z.png', medailleR ='http://i.imgur.com/EwZD1jV.png'
+}
+
+function placerBoum(ligne, colonne, couleur)
+	local offsetX
+	local custom_model_param = {
+		material = 1, mesh = 'https://gist.githubusercontent.com/Langraff/3f9f33f2b00db0623b97/raw/b7076ab1c09f80de7c5d3dfc8c5733148a60a25d/British%20AntiTank%20Cannon'
+	}
+	local model_param = {
+		type = 'Custom_Model'
+	}
+	if couleur == 'bleu' then
+		model_param.rotation = {0,90,0}
+		offsetX = 0.2
+		custom_model_param.diffuse = 'http://cloud-3.steamusercontent.com/ugc/958593419234993841/D7198A67648393CB8BFCE4A4B537A7517642D611/'
+	else
+		custom_model_param.diffuse = 'http://i.imgur.com/UXBlAyC.jpg'
+		model_param.rotation = {0,-90,0}
+		offsetX = -0.2
+	end
+	model_param.position = getPosition(ligne, colonne, 1.7, offsetX, 0.4)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+	model_param.position = getPosition(ligne, colonne, 1.7, offsetX, -0.7)
+	model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+end
+
+function placerTank (ligne, colonne, couleur, quatre)
+	local offsetX
+	local offsetZ
+	local custom_model_param = {
+		material = 1, mesh = 'https://gist.githubusercontent.com/Langraff/ce5554fc2a5e46d3aa1b/raw/735d751f85702288d4fab007de3426685bf7a2a4/t-34'
+	}
+	local model_param = {
+		type = 'Custom_Model'
+	}
+	if couleur == 'bleu' then
+		model_param.rotation = {0,-90,0}
+		offsetX = 0.25
+		offsetZ = 0.15
+		custom_model_param.diffuse = 'http://cloud-3.steamusercontent.com/ugc/958593419234993841/D7198A67648393CB8BFCE4A4B537A7517642D611/'
+	else
+		custom_model_param.diffuse = 'http://i.imgur.com/UXBlAyC.jpg'
+		model_param.rotation = {0,90,0}
+		offsetZ = 0.15
+		offsetX = -0.25
+	end
+	--soldat de Gauche
+	model_param.position = getPosition(ligne, colonne, 1.7, offsetX,offsetZ+ 0.5)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+	--soldat de Droite
+	model_param.position = getPosition(ligne, colonne, 1.7, offsetX,offsetZ -1.1)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+	--saldat du bas
+	if couleur == 'bleu' then
+		model_param.position = getPosition(ligne, colonne, 1.7,offsetX + 0.6, -0.1)
+	else
+		model_param.position = getPosition(ligne, colonne, 1.7,offsetX + -0.6, -0.1)
+	end
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+	--saldat du haut
+	if quatre ~=nil then
+		if couleur == 'bleu' then
+			model_param.position = getPosition(ligne, colonne, 1.7,offsetX + -0.6, -0.1)
+		else
+			model_param.position = getPosition(ligne, colonne, 1.7,offsetX + 0.6, -0.1)
+		end
+		local model = spawnObject(model_param)
+		model.setCustomObject(custom_model_param)
+		model.use_grid = false
+	end
+end
+
+function placerInf(ligne, colonne, couleur, trois)
+	local offsetX
+	local offsetZ
+	local custom_model_param = {
+		material = 1, mesh = 'https://gist.githubusercontent.com/Langraff/905f2a7d8b42c735812f/raw/3c6fef1534f31e2c3623a92c9b2fd355ffef1d7a/soldier'
+	}
+	local model_param = {
+		type = 'Custom_Model'
+	}
+	if couleur == 'bleu' then
+		model_param.rotation = {0,-90,0}
+		offsetX = 0.4
+		offsetZ = 0.15
+		custom_model_param.diffuse = 'http://cloud-3.steamusercontent.com/ugc/958593419234993841/D7198A67648393CB8BFCE4A4B537A7517642D611/'
+	else
+		custom_model_param.diffuse = 'http://i.imgur.com/UXBlAyC.jpg'
+		model_param.rotation = {0,90,0}
+		offsetZ = -0.15
+		offsetX = -0.4
+	end
+	--soldat de Gauche
+	model_param.position = getPosition(ligne, colonne, 1.7, offsetX,offsetZ+ 0.4)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+	--soldat de Droite
+	model_param.position = getPosition(ligne, colonne, 1.7, offsetX,offsetZ -0.7)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+	--saldat du haut
+	model_param.position = getPosition(ligne, colonne, 1.7,offsetX + 0.6, -0.2)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+	--saldat du bas
+	if (trois == nil) then
+		model_param.position = getPosition(ligne, colonne, 1.7,offsetX -0.6,offsetZ -0.2)
+		local model = spawnObject(model_param)
+		model.setCustomObject(custom_model_param)
+		model.use_grid = false
+	end
+end
+
+function placerSable(ligne, colonne, couleur)
+	local offsetX
+	local offsetZ = -0.18
+	local custom_model_param = {
+		material = 1, mesh = 'https://gist.githubusercontent.com/Langraff/2361ab825e796a74940b/raw/07d88e591466035a66622d1b392de49f49c6bdeb/sandbags'
+	}
+	local model_param = {
+		type = 'Custom_Model', scale = {2.2,2.2,2.2}
+	}
+	if couleur == 'bleu' then
+		model_param.rotation = {0,90,0}
+		offsetX = -1.1
+		custom_model_param.diffuse = 'http://cloud-3.steamusercontent.com/ugc/958593419234993841/D7198A67648393CB8BFCE4A4B537A7517642D611/'
+	else
+		custom_model_param.diffuse = 'http://i.imgur.com/UXBlAyC.jpg'
+		model_param.rotation = {0,-90,0}
+		offsetX = 1.1
+	end
+
+	model_param.position = getPosition(ligne, colonne, 1.7, offsetX,offsetZ)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+
+end
+
+type_logo = {
+	ranger = 'http://i.imgur.com/uOU4oCf.png', resistance = 'http://i.imgur.com/6TXoa64.png',
+	panzer = 'http://i.imgur.com/tQwskWA.png', anglais = 'http://i.imgur.com/yVMaTsO.png'
+}
+function placerLogo(ligne, colonne, type, couleur)
+	local offsetX
+	local offsetZ
+	local custom_model_param = {
+		mesh = 'http://pastebin.com/raw.php?i=8gC3mpCc', diffuse = type
+	}
+	local model_param = {
+		type = 'Custom_Model'
+	}
+	if couleur == 'bleu' then
+		model_param.rotation = {0,90,0}
+		offsetX = -0.45
+		offsetZ = -1
+	else
+		model_param.rotation = {0,-90,0}
+		offsetX = 0.45
+		offsetZ = 1
+	end
+	model_param.position = getPosition(ligne, colonne, 1.7, offsetX,offsetZ)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+end
+
+function placerAntiTank(ligne, colonne)
+	local custom_model_param = {
+		mesh = 'https://gist.githubusercontent.com/Langraff/a98333dd4de80e243b86/raw/d2398875509609d9e308c2ccfc215f9124988c8b/pt',
+		diffuse = 'http://cloud-3.steamusercontent.com/ugc/958593419237908359/EBA7E7A683BA13B23BFC7E57D1466964E18104DB/'
+	}
+	local model_param = {
+		type = 'Custom_Model', snap_to_grid = true, scale = {0.2,0.2,0.2}
+	}
+	model_param.position = getPosition(ligne, colonne, 1.7,0,0)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+end
+
+function placerBarb(ligne, colonne)
+	local model_param = {
+		type = 'Custom_Model', scale = {0.2,0.2,0.2}
+	}
+	local custom_model_param = {
+		mesh = 'https://gist.githubusercontent.com/Langraff/639dda5aa7f8d8229e55/raw/717d263dd4b68a69c78f2c06edb56dd35804bd4f/wired',
+		diffuse = 'http://cloud-3.steamusercontent.com/ugc/958593419237908359/EBA7E7A683BA13B23BFC7E57D1466964E18104DB/'
+	}
+	model_param.position = getPosition(ligne, colonne, 1.7,0,-0.3)
+	local model = spawnObject(model_param)
+	model.setCustomObject(custom_model_param)
+	model.use_grid = false
+end
+
+function placerToken(ligne, colonne, typeToken, rot)
+	if rot == nil then
+		rot = 0
+	end
+	local token_param = {
+    	type = 'Custom_Token', scale = {0.75,0.5,0.75},
+    	snap_to_grid = true
+	}
+	local custom_token_params = {
+		image = typeToken, thickness = 0.089
+	}
+	token_param.position = getPosition(ligne, colonne, 1.6)
+	token_param.rotation = {0,rot,0}
+
+	local token = spawnObject(token_param)
+    token.setCustomObject(custom_token_params)
+end
+
+function getPosition(ligne, colonne, y, offsetX, offsetZ)
+	if (offsetX == nil) then
+		offsetX = 0
+	end
+	if (offsetZ == nil) then
+		offsetZ = 0
+	end
+	local coorX = -9.2
+	local coorZ = -21.9 +2.8
+
+	if ligne%2 == 1 then
+		coorZ = coorZ + 1.4
+	end
+	coorX = coorX + (ligne*2.41) + offsetX
+	coorZ = coorZ + (colonne*2.8) + offsetZ
+	v = {coorX, y, coorZ}
+	return v
+end
+
+function placerTile(ligne, colonne, typeTile, rot)
+	if rot ==nil then
+		rot = 0
+	end
+
+	tile_param = {
+		type = 'Custom_Tile', snap_to_grid = true, scale = {0.58,0.58,0.58}
+	}
+	local custom_tile_param ={
+		image = typeTile, thickness = 0.1
+	}
+	if ((typeTile == 'http://i.imgur.com/EwZD1jV.png') or (typeTile == 'http://i.imgur.com/qe3Qm8z.png')) then
+		custom_tile_param.type = 2
+		tile_param.snap_to_grid = false
+		tile_param.position = getPosition(ligne, colonne, 1.7,-0.9,0.55)
+		tile_param.rotation = {0,-90,0}
+	else
+		tile_param.position = getPosition(ligne, colonne, 1.7)
+		tile_param.rotation = {0,rot,0}
+	end
+	local tile = spawnObject(tile_param)
+	tile.setCustomObject(custom_tile_param)
+	if ((typeTile == 'http://i.imgur.com/EwZD1jV.png') or (typeTile == 'http://i.imgur.com/qe3Qm8z.png')) then
+		tile.use_grid = false
+	end
+
+end
+
+function lockBoard(fonctionSuivante)
+	zonePlateau = getObjectFromGUID(zonePlateauGUID)
+	objsPlateau = zonePlateau.getObjects()
+	for i, v in pairs(objsPlateau)do
+		v.setLock(true)
+	end
+	if fonctionSuivante ~= nil then
+		self.call(fonctionSuivante)
+	end
+end
+--[[
+function onObjectEnterScriptingZone(zone, obj)
+	zoneCarte = getObjectFromGUID(zoneCarteGUID)
+	if ((zoneCarte == zone) and (obj.getVelocity().x ~= 0 or obj.getVelocity().y ~= 0 or obj.getVelocity().z ~= 0)) then
+		obj_param = {
+			position = {-6.7,4,-28}
+		}
+		obj.clone(obj_param)
+		obj.destruct()
+	end
+end
+]]--
+function flipBoard()
+	plateau = getObjectFromGUID(plateauGUID)
+	custom_plateau_param = plateau.getCustomObject()
+	if sensPlateau == 'plaine' then
+		sensPlateau = 'mer'
+		custom_plateau_param.diffuse = 'http://cloud-3.steamusercontent.com/ugc/958593419238669441/D56617766301735B92D03514B6BD5CF94BAFA61D/'
+	else
+		sensPlateau = 'plaine'
+		custom_plateau_param.diffuse = 'http://cloud-3.steamusercontent.com/ugc/958593419238670284/F242180DB6F48CC55F040631D642DC24542B6658/'
+
+	end
+	plateau.setCustomObject(custom_plateau_param)
+	plateau.reload()
+end
+
+function buildMap1_1()
+	if sensPlateau == 'mer' then
+		flipBoard()
+	end
+
+	placerToken(0,1,typeToken.foret)
+	placerToken(1,1,typeToken.foret)
+	placerToken(0,4,typeToken.foret)
+	placerToken(1,3,typeToken.foret)
+	placerToken(5,2,typeToken.foret)
+	placerToken(4,7,typeToken.foret)
+	placerToken(7,6,typeToken.foret)
+	placerToken(8,6,typeToken.foret)
+	placerToken(8,7,typeToken.foret)
+
+	placerToken(0,3,typeToken.rivieredroite2,120)
+	placerToken(1,2,typeToken.rivieredroite2,120)
+	placerToken(2,2,typeToken.rivieredroite1,120)
+	placerToken(3,1,typeToken.rivieredroite2,-60)
+	placerToken(4,1,typeToken.rivieredroite1,-60)
+	placerToken(5,0,typeToken.rivieredroite1,-60)
+	placerToken(6,0,typeToken.riviereCoudee,-60)
+
+	placerToken(0,12,typeToken.rivieredroite1,120)
+	placerToken(1,11,typeToken.rivieredroite2,-60)
+	placerToken(2,11,typeToken.rivieredroite1,-60)
+	placerToken(3,10,typeToken.rivieredroite2,-60)
+	placerToken(4,10,typeToken.rivieredroite1,-60)
+	placerToken(5,9,typeToken.rivieredroite1,120)
+	placerToken(6,9,typeToken.rivieredroite2,-60)
+	placerToken(7,8,typeToken.rivieredroite2,-60)
+	placerToken(8,8,typeToken.riviereCoudee,60)
+
+	placerToken(2,5,typeToken.riviereCoudee,120)
+	placerToken(2,6,typeToken.riviereCoudee,180)
+	placerToken(3,5,typeToken.riviereCoudee,0)
+	placerToken(3,6,typeToken.riviereCoudee,-60)
+
+	placerToken(8,12,typeToken.village5)
+	placerToken(8,11,typeToken.village5)
+	placerToken(6,10,typeToken.village4)
+	placerToken(4,12,typeToken.village3)
+
+	placerBarb(4,8)
+	placerBarb(4,9)
+	placerBarb(5,7)
+	placerBarb(6,7)
+
+	Wait.time(buildMap1_2, 1)
+end
+function buildMap1_2()
+	placerTile(6,9, typeTile.pont, -60)
+	placerTile(3,1, typeTile.pont, -60)
+	Wait.time(function() lockBoard("buildMap1_3") end, 1)
+end
+function buildMap1_3()
+	placerTile(6,9, typeTile.medailleB)
+	placerTile(3,1, typeTile.medailleB)
+
+	placerInf(0,4,'vert')
+	placerInf(0,5,'vert')
+	placerInf(1,4,'vert')
+	placerInf(0,7,'vert')
+	placerInf(1,7,'vert')
+	placerInf(1,6,'vert')
+	placerInf(2,9,'vert')
+	placerInf(2,10,'vert')
+	placerInf(3,9,'vert')
+	placerInf(8,12,'bleu')
+	placerInf(6,10,'bleu')
+	placerInf(6,8,'bleu')
+	placerInf(5,8,'bleu')
+	placerInf(7,1,'bleu')
+	placerInf(2,0,'bleu')
+
+	placerSable(5,8, 'bleu')
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(6,'Blue')
+	paquet.deal(2,'Red')
+	etat_generation = 'ready'
+end
+function buildMap2_1()
+	if sensPlateau == 'mer' then
+		flipBoard()
+	end
+	placerToken(1,5,typeToken.foret)
+	placerToken(1,8,typeToken.foret)
+	placerToken(4,1,typeToken.foret)
+	placerToken(6,1,typeToken.foret)
+	placerToken(6,3,typeToken.foret)
+	placerToken(6,8,typeToken.foret)
+	placerToken(7,2,typeToken.foret)
+	placerToken(7,3,typeToken.foret)
+	placerToken(7,4,typeToken.foret)
+	placerToken(7,8,typeToken.foret)
+	placerToken(7,9,typeToken.foret)
+	placerToken(8,3,typeToken.foret)
+	placerToken(8,4,typeToken.foret)
+	placerToken(8,8,typeToken.foret)
+	placerToken(8,9,typeToken.foret)
+	placerToken(8,10,typeToken.foret)
+
+	placerToken(1,3,typeToken.bocage)
+	placerToken(3,2,typeToken.bocage)
+	placerToken(4,8,typeToken.bocage)
+
+	placerToken(4,5,typeToken.village1)
+	placerToken(5,5,typeToken.village2)
+	placerToken(4,6,typeToken.village3)
+	placerToken(6,0,typeToken.village4)
+	placerToken(6,9,typeToken.village5)
+	placerToken(5,9,typeToken.village1)
+
+	placerToken(3,10,typeToken.montagne)
+	Wait.time(function() lockBoard("buildMap2_2") end, 3)
+end
+
+function buildMap2_2()
+	placerInf(0,5,'vert')
+	placerInf(0,8,'vert')
+	placerInf(1,1,'vert')
+	placerInf(1,4,'vert')
+	placerInf(2,6,'vert')
+	placerInf(3,10,'vert')
+	placerSable(3,10,'vert')
+
+	placerInf(6,2,'bleu')
+	placerInf(6,12,'bleu')
+	placerInf(7,0,'bleu')
+	placerInf(7,1,'bleu')
+	placerInf(7,11,'bleu')
+	placerInf(8,1,'bleu')
+	placerInf(8,12,'bleu')
+	placerInf(8,11,'bleu')
+	placerTank(8,0,'bleu')
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(5,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
+
+function buildMap3_1()
+	if sensPlateau == 'plaine' then
+		flipBoard()
+	end
+
+	placerToken(7,2,typeToken.foret)
+	placerToken(7,10,typeToken.foret)
+	placerToken(7,11,typeToken.foret)
+	placerToken(8,2,typeToken.foret)
+
+	placerToken(8,0,typeToken.village3)
+	placerToken(8,7,typeToken.village1)
+	placerToken(8,11,typeToken.village2)
+	placerTile(5,3, typeTile.bunker, -90)
+	placerTile(6,6, typeTile.bunker, -90)
+	placerTile(5,9, typeTile.bunker, -90)
+
+	placerAntiTank(2,2)
+	placerAntiTank(2,7)
+	placerAntiTank(2,11)
+	placerAntiTank(3,3)
+	placerAntiTank(3,4)
+	placerAntiTank(3,8)
+	placerAntiTank(3,9)
+
+	placerBarb(5,0)
+	placerBarb(5,1)
+	placerBarb(5,5)
+	placerBarb(5,11)
+	placerBarb(4,3)
+	placerBarb(4,4)
+	placerBarb(4,7)
+	placerBarb(4,8)
+	placerBarb(4,10)
+	placerBarb(4,11)
+
+	Wait.time(function() lockBoard("buildMap3_2") end, 3)
+end
+
+function buildMap3_2()
+	placerTile(8,0, typeTile.medailleB)
+	placerTile(8,11, typeTile.medailleB)
+	placerTile(8,7, typeTile.medailleB)
+
+	placerInf(0,0,'vert')
+	placerLogo(0,0,type_logo.anglais, 'vert')
+	placerInf(1,1,'vert')
+	placerInf(1,3,'vert')
+	placerInf(1,6,'vert')
+	placerInf(1,9,'vert')
+	placerInf(0,12,'vert')
+	placerLogo(0,12,type_logo.anglais, 'vert')
+	placerInf(0,8,'vert')
+	placerLogo(0,8,type_logo.anglais, 'vert')
+	placerInf(0,7,'vert')
+	placerInf(0,6,'vert')
+
+	placerInf(8,0,'bleu')
+	placerInf(8,7,'bleu')
+	placerInf(7,3,'bleu')
+	placerInf(6,11,'bleu')
+	placerInf(5,3,'bleu')
+	placerInf(5,9,'bleu')
+
+	placerTank(1,2,'vert')
+	placerTank(1,7,'vert')
+	placerTank(1,10,'vert')
+
+	placerTank(8,12,'bleu')
+
+	placerBoum(6,6,'bleu')
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(5,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
+
+function buildMap4_1()
+	if sensPlateau ~= 'mer' then
+		flipBoard()
+	end
+	placerToken(2,2,typeToken.montagne)
+	placerToken(3,2,typeToken.montagne)
+	placerToken(3,1,typeToken.montagne)
+	for i=0, 12 do
+		placerToken(4,i,typeToken.montagne)
+	end
+	placerToken(8,2,typeToken.foret)
+	placerToken(8,3,typeToken.foret)
+
+	placerBarb(5,1)
+	placerBarb(6,1)
+	placerBarb(5,10)
+	placerBarb(6,11)
+	placerBarb(7,10)
+	placerBarb(7,6)
+	placerBarb(8,6)
+	Wait.time(buildMap4_2,1)
+end
+
+function buildMap4_2()
+	placerTile(2,2, typeTile.bunker, -90)
+	placerTile(5,0, typeTile.bunker, -90)
+	placerTile(6,5, typeTile.bunker, -90)
+	placerTile(6,10, typeTile.bunker, -90)
+	Wait.time(function() lockBoard("buildMap4_3") end, 1.5)
+end
+
+function buildMap4_3()
+	placerTile(8,2, typeTile.medailleB)
+	placerTile(8,3, typeTile.medailleB)
+
+	placerInf(0,4, 'vert')
+	placerInf(0,5, 'vert')
+	placerInf(1,5, 'vert')
+	placerInf(1,6, 'vert')
+	placerInf(1,7, 'vert')
+	placerInf(1,8, 'vert')
+	placerInf(1,10, 'vert')
+	placerInf(1,11, 'vert')
+	placerInf(2,12, 'vert')
+
+	placerInf(5,8, 'bleu')
+	placerInf(7,5, 'bleu')
+	placerInf(2,2, 'bleu')
+	placerInf(6,5, 'bleu')
+	placerInf(6,10, 'bleu')
+	placerBoum(5,0,'bleu')
+
+	placerSable(5,8,'bleu')
+	placerSable(7,5,'bleu')
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(6,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
+function buildMap5_1()
+	if sensPlateau ~= 'mer' then
+		flipBoard()
+	end
+
+	placerToken(4,0,typeToken.montagne)
+	placerToken(4,12,typeToken.montagne)
+	placerToken(5,1,typeToken.montagne)
+	placerToken(5,2,typeToken.montagne)
+	placerToken(5,3,typeToken.montagne)
+	placerToken(5,5,typeToken.montagne)
+	placerToken(5,6,typeToken.montagne)
+	placerToken(5,7,typeToken.montagne)
+	placerToken(5,9,typeToken.montagne)
+	placerToken(5,10,typeToken.montagne)
+	placerToken(6,4,typeToken.montagne)
+	placerToken(6,9,typeToken.montagne)
+	placerToken(6,12,typeToken.montagne)
+
+	placerToken(8,12,typeToken.village1)
+	placerToken(8,7,typeToken.village2)
+	placerToken(7,1,typeToken.village1)
+	placerToken(7,0,typeToken.village3)
+	placerToken(6,5,typeToken.village4)
+
+	placerAntiTank(2,1)
+	placerAntiTank(2,3)
+	placerAntiTank(2,4)
+	placerAntiTank(2,8)
+	placerAntiTank(2,9)
+	placerAntiTank(3,5)
+	placerAntiTank(3,6)
+	placerAntiTank(3,10)
+
+	placerBarb(3,0)
+	placerBarb(3,7)
+	placerBarb(3,8)
+	placerBarb(3,9)
+	placerBarb(4,1)
+	placerBarb(4,4)
+	placerBarb(4,5)
+	placerBarb(4,11)
+	placerBarb(5,8)
+	Wait.time(buildMap5_2,1)
+end
+
+function buildMap5_2()
+	placerTile(4,0,typeTile.bunker,-90)
+	placerTile(5,3,typeTile.bunker,-90)
+	placerTile(5,7,typeTile.bunker,-90)
+	placerTile(5,10,typeTile.bunker,-90)
+	placerSable(3,1,'vert')--Digue
+	placerSable(3,2,'vert')--Digue aussi
+
+	Wait.time(function() lockBoard("buildMap5_3") end, 1.5)
+end
+
+function buildMap5_3()
+	placerTile(7,0, typeTile.medailleB)
+	placerTile(7,1, typeTile.medailleB)
+	placerTile(6,5, typeTile.medailleB)
+	placerTile(8,7, typeTile.medailleB)
+	placerTile(8,12, typeTile.medailleB)
+	placerSable(5,1,'bleu')
+	placerSable(4,12,'bleu')
+
+	placerBoum(4,0,'bleu')
+	placerBoum(5,10,'bleu')
+
+	placerInf(4,12,'bleu')
+	placerInf(5,1,'bleu')
+	placerInf(5,3,'bleu')
+	placerInf(5,7,'bleu')
+	placerInf(6,5,'bleu')
+	placerInf(7,1,'bleu')
+	placerInf(7,3,'bleu')
+	placerInf(8,7,'bleu')
+
+	placerInf(0,0,'vert')
+	placerInf(0,1,'vert')
+	placerInf(0,6,'vert')
+	placerInf(0,12,'vert')
+	placerInf(0,10,'vert')
+	placerInf(1,0,'vert')
+	placerInf(1,6,'vert')
+	placerInf(1,9,'vert')
+	placerInf(1,10,'vert')
+	placerInf(1,11,'vert')
+
+	placerTank(1,1,'vert')
+	placerTank(1,4,'vert')
+	placerTank(1,7,'vert')
+
+	placerLogo(0,0,type_logo.ranger)
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(4,'Blue')
+	paquet.deal(5,'Red')
+	etat_generation = 'ready'
+end
+
+function buildMap6_1()
+	if sensPlateau ~= 'plaine' then
+		flipBoard()
+	end
+	placerToken(2,10,typeToken.montagne)
+	placerToken(3,2,typeToken.montagne)
+	placerToken(4,3,typeToken.montagne)
+	placerToken(4,4,typeToken.montagne)
+
+	placerToken(0,2,typeToken.foret)
+	placerToken(0,5,typeToken.foret)
+	placerToken(1,7,typeToken.foret)
+	placerToken(1,10,typeToken.foret)
+	placerToken(2,1,typeToken.foret)
+	placerToken(2,6,typeToken.foret)
+	placerToken(3,4,typeToken.foret)
+	placerToken(4,2,typeToken.foret)
+	placerToken(4,7,typeToken.foret)
+	placerToken(4,9,typeToken.foret)
+	placerToken(4,11,typeToken.foret)
+	placerToken(4,12,typeToken.foret)
+	placerToken(5,7,typeToken.foret)
+	placerToken(5,9,typeToken.foret)
+	placerToken(6,10,typeToken.foret)
+	placerToken(6,11,typeToken.foret)
+	placerToken(7,1,typeToken.foret)
+	placerToken(7,5,typeToken.foret)
+	placerToken(7,11,typeToken.foret)
+	placerToken(8,8,typeToken.foret)
+
+	placerToken(2,8,typeToken.village1)
+	placerToken(5,0,typeToken.village5)
+	placerToken(5,5,typeToken.village4)
+	placerToken(7,6,typeToken.village5)
+	placerToken(7,8,typeToken.village2)
+
+	Wait.time(function() lockBoard("buildMap6_2") end, 3)
+end
+function buildMap6_2()
+	placerInf(2,1, 'vert', 'trois')
+	placerInf(2,4, 'vert', 'trois')
+	placerInf(2,9, 'vert', 'trois')
+	placerInf(1,6, 'vert', 'trois')
+	placerInf(1,8, 'vert', 'trois')
+	placerInf(3,3, 'vert', 'trois')
+	placerInf(3,10, 'vert', 'trois')
+
+	placerInf(5,6, 'bleu')
+	placerInf(6,2, 'bleu')
+	placerInf(7,0, 'bleu')
+	placerInf(7,9, 'bleu')
+	placerInf(8,4, 'bleu')
+	placerInf(8,5, 'bleu')
+
+	placerTank(8,12, 'bleu', 'quatre')
+	placerTank(7,10, 'bleu', 'quatre')
+
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(5,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
+function buildMap7_1()
+	if sensPlateau ~= 'plaine' then
+		flipBoard()
+	end
+
+	placerToken(0,8,typeToken.foret)
+	placerToken(1,1,typeToken.foret)
+	placerToken(1,3,typeToken.foret)
+	placerToken(1,10,typeToken.foret)
+	placerToken(2,6,typeToken.foret)
+	placerToken(3,1,typeToken.foret)
+	placerToken(3,8,typeToken.foret)
+	placerToken(4,3,typeToken.foret)
+	placerToken(4,11,typeToken.foret)
+	placerToken(5,9,typeToken.foret)
+	placerToken(6,3,typeToken.foret)
+	placerToken(6,11,typeToken.foret)
+	placerToken(7,1,typeToken.foret)
+	placerToken(7,7,typeToken.foret)
+
+	placerToken(1,5,typeToken.montagne)
+	placerToken(2,7,typeToken.montagne)
+	placerToken(3,7,typeToken.montagne)
+	placerToken(4,9,typeToken.montagne)
+	placerToken(5,0,typeToken.montagne)
+	placerToken(5,1,typeToken.montagne)
+	placerToken(5,2,typeToken.montagne)
+
+	placerToken(6,6,typeToken.village1)
+	placerToken(7,5,typeToken.village1)
+	placerToken(7,4,typeToken.village2)
+	placerToken(8,3,typeToken.village4)
+
+	Wait.time(function() lockBoard("buildMap7_2") end, 3)
+end
+function buildMap7_2()
+	placerInf(0,2,'vert','trois')
+	placerInf(0,3,'vert','trois')
+	placerInf(0,6,'vert','trois')
+	placerInf(1,0,'vert','trois')
+	placerInf(1,6,'vert','trois')
+	placerInf(2,11,'vert','trois')
+	placerInf(2,10,'vert','trois')
+	placerInf(3,5,'vert','trois')
+	placerInf(4,8,'vert','trois')
+	placerInf(4,12,'vert','trois')
+
+	placerInf(5,3,'bleu')
+	placerInf(5,5,'bleu')
+	placerInf(6,4,'bleu')
+	placerInf(6,8,'bleu')
+	placerInf(7,8,'bleu')
+	placerInf(7,9,'bleu')
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(4,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
+function buildMap8_1()
+	if sensPlateau ~= 'plaine' then
+		flipBoard()
+	end
+	placerToken(0,9,typeToken.foret)
+	placerToken(1,8,typeToken.foret)
+	placerToken(1,7,typeToken.foret)
+	placerToken(2,9,typeToken.foret)
+	placerToken(2,8,typeToken.foret)
+	placerToken(2,1,typeToken.foret)
+	placerToken(6,11,typeToken.foret)
+	placerToken(7,5,typeToken.foret)
+	placerToken(8,4,typeToken.foret)
+
+	placerToken(0,11,typeToken.rivieredroite2,60)
+	placerToken(1,11,typeToken.rivieredroite1,60)
+	placerToken(2,12,typeToken.rivieredroite2,60)
+	placerToken(2,0,typeToken.rivieredroite2,60)
+	placerToken(3,0,typeToken.riviereCoudee,-120)
+	placerToken(4,0,typeToken.rivieredroite1,-60)
+
+	placerToken(2,4,typeToken.bocage)
+	placerToken(3,7,typeToken.bocage)
+	placerToken(4,1,typeToken.bocage)
+	placerToken(4,2,typeToken.bocage)
+	placerToken(4,12,typeToken.bocage)
+	placerToken(5,3,typeToken.bocage)
+	placerToken(5,5,typeToken.bocage)
+	placerToken(5,8,typeToken.bocage)
+	placerToken(6,1,typeToken.bocage)
+	placerToken(7,4,typeToken.bocage)
+	placerToken(7,9,typeToken.bocage)
+	placerToken(4,6,typeToken.bocage)
+
+	placerToken(0,12,typeToken.village5)
+	placerToken(4,11,typeToken.village4)
+	placerToken(6,3,typeToken.village3)
+	placerToken(7,7,typeToken.village5)
+	placerToken(8,2,typeToken.village5)
+
+	Wait.time(buildMap8_2, 1.5)
+end
+function buildMap8_2()
+	placerTile(1,11,typeTile.pont,60)
+	Wait.time(function() lockBoard("buildMap8_3") end, 1.5)
+end
+function buildMap8_3()
+	placerTile(8,2, typeTile.medailleB)
+	placerTile(7,7, typeTile.medailleB)
+
+	placerInf(0,6,'vert')
+	placerInf(0,10,'vert')
+	placerInf(1,0,'vert')
+	placerInf(1,2,'vert')
+	placerInf(1,1,'vert')
+	placerInf(1,4,'vert')
+	placerInf(1,5,'vert')
+	placerInf(1,6,'vert')
+	placerInf(1,9,'vert')
+	placerInf(1,10,'vert')
+
+	placerTank(0,0,'vert')
+	placerTank(0,1,'vert')
+	placerTank(0,7,'vert')
+	placerTank(0,8,'vert')
+
+	placerTank(8,5,'bleu','quatre')
+	placerLogo(8,5,type_logo.panzer)
+	placerTank(4,12,'bleu')
+	placerInf(4,1,'bleu')
+	placerInf(4,2,'bleu')
+	placerInf(4,6,'bleu')
+	placerInf(4,11,'bleu')
+	placerInf(5,3,'bleu')
+	placerInf(5,8,'bleu')
+	placerInf(8,6,'bleu')
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(5,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
+
+function buildMap9_1()
+	if sensPlateau ~= 'plaine' then
+		flipBoard()
+	end
+
+	placerToken(0,1,typeToken.village1)
+	placerToken(1,3,typeToken.foret)
+	placerToken(1,7,typeToken.foret)
+	placerToken(1,8,typeToken.foret)
+	placerToken(2,4,typeToken.bocage)
+	placerToken(2,5,typeToken.bocage)
+	placerToken(2,10,typeToken.village2)
+	placerToken(3,0,typeToken.foret)
+	placerToken(3,1,typeToken.montagne)
+	placerToken(3,7,typeToken.montagne)
+	placerToken(3,8,typeToken.bocage)
+	placerToken(4,0,typeToken.foret)
+	placerToken(4,1,typeToken.montagne)
+	placerToken(4,2,typeToken.village3)
+	placerToken(4,4,typeToken.bocage)
+	placerToken(4,6,typeToken.village1)
+	placerToken(4,7,typeToken.montagne)
+	placerToken(4,11,typeToken.bocage)
+	placerToken(4,12,typeToken.rivieredroite1,-60)
+	placerToken(5,0,typeToken.foret)
+	placerToken(5,8,typeToken.bocage)
+	placerToken(5,10,typeToken.bocage)
+	placerToken(5,11,typeToken.rivieredroite2,-60)
+	placerToken(6,0,typeToken.foret)
+	placerToken(6,3,typeToken.bocage)
+	placerToken(6,6,typeToken.montagne)
+	placerToken(6,11,typeToken.rivieredroite2,-60)
+	placerToken(6,12,typeToken.village4)
+	placerToken(7,5,typeToken.montagne)
+	placerToken(7,8,typeToken.riviereCoudee, 120)
+	placerToken(7,9,typeToken.rivieredroite2)
+	placerToken(7,10,typeToken.riviereCoudee, -60)
+	placerToken(8,8,typeToken.rivieredroite1,-60)
+	placerToken(8,9,typeToken.village5)
+	placerToken(8,11,typeToken.montagne)
+	placerToken(8,12,typeToken.montagne)
+
+	Wait.time(buildMap9_2, 1.5)
+end
+function buildMap9_2()
+	placerTile(5,11,typeTile.pont,150)
+	placerTile(8,8,typeTile.pont,90)
+
+	Wait.time(function() lockBoard("buildMap9_3") end, 1.5)
+end
+function buildMap9_3()
+	placerInf(0,4,'vert')
+	placerInf(1,2,'vert')
+	placerInf(1,11,'vert')
+	placerInf(2,5,'vert')
+	placerInf(3,8,'vert')
+	placerInf(4,1,'vert')
+	placerSable(4,1,'vert')
+	placerInf(4,4,'vert')
+	placerInf(4,6,'vert')
+	placerInf(4,11,'vert')
+	placerTank(0,11,'vert')
+	placerTank(0,12,'vert')
+	placerBoum(1,6,'vert')
+	placerBoum(1,10,'vert')
+	placerSable(1,6,'vert')
+	placerSable(1,10,'vert')
+	placerSable(4,6,'vert')
+
+	placerTank(7,1,'bleu')
+	placerInf(7,3,'bleu')
+	placerInf(7,7,'bleu')
+	placerTank(7,6,'bleu')
+	placerInf(8,0,'bleu')
+	placerTank(8,1,'bleu',4)
+	placerLogo(8,1,type_logo.panzer,'bleu')
+	placerInf(8,2,'bleu')
+	placerLogo(8,2,type_logo.panzer,'bleu')
+	placerTank(8,4,'bleu',4)
+	placerLogo(8,4,type_logo.panzer,'bleu')
+	placerInf(8,5,'bleu')
+	placerTank(8,7,'bleu')
+	placerInf(8,10,'bleu')
+	placerInf(8,11,'bleu')
+	placerTank(8,12,'bleu')
+
+	placerTile(0,1, typeTile.medailleR)
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(6,'Blue')
+	paquet.deal(5,'Red')
+	etat_generation = 'ready'
+end
+function buildMap10_1()
+	if sensPlateau ~= 'plaine' then
+		flipBoard()
+	end
+	placerToken(0,4,typeToken.foret)
+	placerToken(1,2,typeToken.montagne)
+	placerToken(1,4,typeToken.montagne)
+	placerToken(1,8,typeToken.montagne)
+	placerToken(2,0,typeToken.montagne)
+	placerToken(2,3,typeToken.foret)
+	placerToken(2,4,typeToken.foret)
+	placerToken(2,8,typeToken.foret)
+	placerToken(2,9,typeToken.montagne)
+	placerToken(3,0,typeToken.foret)
+	placerToken(3,1,typeToken.montagne)
+	placerToken(3,2,typeToken.montagne)
+	placerToken(3,3,typeToken.foret)
+	placerToken(3,5,typeToken.montagne)
+	placerToken(3,6,typeToken.montagne)
+	placerToken(3,7,typeToken.foret)
+	placerToken(3,8,typeToken.foret)
+	placerToken(4,2,typeToken.foret)
+	placerToken(4,3,typeToken.foret)
+	placerToken(4,8,typeToken.foret)
+	placerToken(4,11,typeToken.foret)
+	placerToken(5,0,typeToken.montagne)
+	placerToken(5,2,typeToken.montagne)
+	placerToken(5,3,typeToken.montagne)
+	placerToken(5,9,typeToken.village4)
+	placerToken(6,6,typeToken.village1)
+	placerToken(6,9,typeToken.foret)
+	placerToken(6,11,typeToken.foret)
+	placerToken(7,3,typeToken.village1)
+	placerToken(7,4,typeToken.village2)
+	placerToken(8,6,typeToken.village3)
+
+	placerBarb(4,9)
+	placerBarb(4,10)
+
+	Wait.time(function() lockBoard("buildMap10_2") end, 3)
+end
+function buildMap10_2()
+
+	placerTank(0,0,'vert')
+	placerTank(0,1,'vert')
+	placerTank(0,12,'vert')
+	placerTank(0,11,'vert')
+	placerInf(0,2,'vert')
+	placerInf(0,6,'vert')
+	placerInf(0,7,'vert')
+	placerInf(0,8,'vert')
+	placerInf(0,9,'vert')
+	placerInf(1,0,'vert')
+	placerInf(1,1,'vert')
+	placerInf(1,9,'vert')
+	placerInf(1,10,'vert')
+	placerLogo(1,10,type_logo.ranger)
+	placerInf(1,11,'vert')
+	placerLogo(0,2,type_logo.ranger)
+
+	placerInf(3,5,'bleu')
+	placerSable(3,5,'bleu')
+	placerInf(3,6,'bleu')
+	placerSable(3,6,'bleu')
+	placerInf(4,3,'bleu')
+	placerInf(4,11,'bleu')
+	placerInf(6,6,'bleu')
+	placerInf(6,8,'bleu')
+	placerSable(6,8,'bleu')
+	placerBoum(5,9,'bleu')
+	placerSable(5,9,'bleu')
+	placerInf(7,0,'bleu')
+	placerInf(7,4,'bleu')
+	placerInf(7,6,'bleu')
+	placerInf(8,3,'bleu')
+	placerSable(7,0,'bleu')
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(6,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
+function buildMap11_1()
+	if sensPlateau ~= 'plaine' then
+		flipBoard()
+	end
+
+
+
+	Wait.time(function() lockBoard("buildMap11_2") end, 3)
+end
+function buildMap11_2()
+
+
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(6,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
+function buildMap12_1()
+	if sensPlateau == 'mer' then
+		flipBoard()
+	end
+
+
+	Wait.time(function() lockBoard("buildMap12_2") end, 3)
+end
+function buildMap12_2()
+
+
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(5,'Blue')
+	paquet.deal(5,'Red')
+	etat_generation = 'ready'
+end
+function buildMap13_1()
+	if sensPlateau == 'mer' then
+		flipBoard()
+	end
+
+
+
+	Wait.time(function() lockBoard("buildMap13_2") end, 3)
+end
+function buildMap13_2()
+
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(6,'Blue')
+	paquet.deal(6,'Red')
+	etat_generation = 'ready'
+end
+function buildMap14_1()
+	if sensPlateau == 'mer' then
+		flipBoard()
+	end
+
+
+
+	Wait.time(function() lockBoard("buildMap14_2") end, 3)
+end
+function buildMap14_2()
+
+
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(6,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
+function buildMap15_1()
+	if sensPlateau == 'mer' then
+		flipBoard()
+	end
+
+
+
+	Wait.time(function() lockBoard("buildMap15_2") end, 3)
+end
+function buildMap15_2()
+
+
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(4,'Blue')
+	paquet.deal(5,'Red')
+	etat_generation = 'ready'
+end
+
+function buildMap16_1()
+	if sensPlateau == 'mer' then
+		flipBoard()
+	end
+
+
+
+	Wait.time(function() lockBoard("buildMap16_2") end, 3)
+end
+function buildMap16_2()
+
+
+
+	paquet = getObjectFromGUID(paquetCarteGUID)
+	paquet.deal(6,'Blue')
+	paquet.deal(4,'Red')
+	etat_generation = 'ready'
+end
